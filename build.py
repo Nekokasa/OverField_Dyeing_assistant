@@ -1,40 +1,58 @@
-import PyInstaller.__main__
 import os
-import importlib.util
-import keyboard
+import shutil
+from PyInstaller.__main__ import run
 
-# 获取当前目录
-current_dir = os.path.dirname(os.path.abspath(__file__))
+def clean_build_folders():
+    """清理构建文件夹"""
+    folders = ['build', 'dist']
+    for folder in folders:
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+            print(f"已清理 {folder} 文件夹")
 
-# 获取 keyboard 模块的位置
-keyboard_path = os.path.dirname(keyboard.__file__)
-winkeyboard_path = os.path.join(keyboard_path, '_winkeyboard.cp312-win_amd64.pyd')
+def build_app():
+    """构建应用程序"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    clean_build_folders()
+    app_name = "开放空间染色助手"
+    icon_path = os.path.join(current_dir, "icon", "icon.png")
+    main_script = os.path.join(current_dir, "rsc", "color_matcher_mini.py")
 
-# 定义资源文件
-resources = [
-    os.path.join(current_dir, 'config'),  # config 文件夹
-    os.path.join(current_dir, 'rsc'),     # rsc 文件夹
-]
+    params = [
+        main_script,
+        f'--name={app_name}',
+        '--onedir',
+        '--console',  # 调试时建议保留控制台
+        f'--icon={icon_path}',
+        '--noconfirm',
+        f'--add-data={os.path.join(current_dir, "config")};config',
+        f'--add-data={os.path.join(current_dir, "rsc")};rsc',
+        f'--add-data={os.path.join(current_dir, "icon")};icon',
+        f'--add-data={os.path.join(current_dir, "log")};log',
+        '--hidden-import=PyQt5',
+        '--hidden-import=PyQt5.QtCore',
+        '--hidden-import=PyQt5.QtGui',
+        '--hidden-import=PyQt5.QtWidgets',
+        '--hidden-import=PyQt5.sip',
+        '--hidden-import=keyboard',
+        '--hidden-import=win32api',
+        '--hidden-import=win32gui',
+        '--hidden-import=win32event',
+        '--hidden-import=winerror',
+        '--hidden-import=win32con',
+        '--hidden-import=ui_logic_mini',
+        '--hidden-import=color_card_util',
+        '--hidden-import=logger_util',
+        '--collect-all=PyQt5',
+        '--debug=imports',  # 保留导入调试
+    ]
 
-# 打包参数
-params = [
-    os.path.join(current_dir, 'rsc', 'color_matcher_mini.py'),  # 主程序
-    '--name=开发空间染色助手_v1.0',           # 生成的exe名称
-    '--noconsole',              # 不显示控制台
-    '--icon=' + os.path.join(current_dir, 'rsc', 'icon.png'),  # 程序图标
-    '--hidden-import=keyboard',  # keyboard模块
-    '--hidden-import=win32api',  # win32api模块
-    '--manifest=' + os.path.join(current_dir, 'app.manifest'),   # 管理员权限manifest
-    '--noconfirm',              # 覆盖已存在的输出目录
-    '--clean',                  # 清理临时文件
-]
+    print("开始打包...")
+    try:
+        run(params)
+        print(f"打包完成！程序位于 dist/{app_name} 文件夹中")
+    except Exception as e:
+        print(f"打包失败: {str(e)}")
 
-# 添加资源文件
-for res in resources:
-    if os.path.isdir(res):
-        params.append(f'--add-data={res};{os.path.basename(res)}')
-
-# 运行打包
-PyInstaller.__main__.run(params)
-
-print("打包完成!")
+if __name__ == "__main__":
+    build_app()

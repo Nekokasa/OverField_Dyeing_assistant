@@ -42,12 +42,14 @@ class ColorMatcherApp(QMainWindow):
     showMessageSignal = pyqtSignal(str, str)
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("开放空间染色助手")
+        self.setWindowTitle("开放空间染色助手v1.0.0")
         self.init_ui()
         self.reset_config()  # 初始化时直接加载config.ini
         self.askUserSignal.connect(self.handle_ask_user)
         self.showMessageSignal.connect(self.show_message)
         self.script_thread = None
+        self.setWindowIcon(QIcon(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'icon', 'icon.png'))))
+
         self.exit_reasons = {
             0: "脚本正常结束。",
             1: "用户主动终止。",
@@ -322,7 +324,7 @@ class ColorMatcherApp(QMainWindow):
         self.hex_input.installEventFilter(self) # 安装事件过滤器以处理快捷键
         self.color_picking_btn = QPushButton()
         self.color_picking_btn.clicked.connect(self.color_pick)
-        self.color_picking_btn.setIcon(QIcon(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'rsc', 'color_picker.png'))))
+        self.color_picking_btn.setIcon(QIcon(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'icon', 'color_picker.png'))))
         hex_hbox = QHBoxLayout()
         hex_hbox.addWidget(self.hex_input)
         hex_hbox.addWidget(self.color_picking_btn)
@@ -922,15 +924,17 @@ class ColorMatcherApp(QMainWindow):
         # 配置文件路径调整到 config 目录
         config_path = os.path.join(os.path.dirname(__file__), '../config/config.ini')
         config_path = os.path.normpath(config_path)
+        config_dir = os.path.dirname(config_path)
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
         data = {k: self.get_config_value(k) for k in self.get_config_fields()}
         geo = self.geometry()
         data['window_x'] = str(geo.x())
         data['window_y'] = str(geo.y())
         data['window_width'] = str(geo.width())
         data['window_height'] = str(geo.height())
-        # 不再保存分割线位置
         ui_logic_mini.save_config_to_file(config_path, data, self.get_config_fields())
-
+    
     def save_as_default_config(self):
         # 保存为默认配置 (config.ini)
         if hasattr(self, 'confirm_config_cb') and self.confirm_config_cb.isChecked():
