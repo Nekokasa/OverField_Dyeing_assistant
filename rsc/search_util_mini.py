@@ -1,60 +1,13 @@
-from pyautogui import *
+from pyautogui import click, moveTo, mouseUp, mouseDown,moveRel,press
 import time
 from PyQt5.QtCore import QThread, pyqtSignal
 from ui_logic_mini import *
-import win32gui
-import win32ui
 import win32con
 import win32api
-import numpy as np
 
 def fast_move_rel(dx, dy):
     """使用win32api快速移动鼠标（相对移动）"""
     win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, dx, dy, 0, 0)
-
-def fast_grab_pixels(left, top, width, height):
-    """使用Windows API快速获取屏幕像素
-    返回numpy数组，shape为(height, width, 3)，RGB格式
-    """
-    # 获取桌面窗口句柄
-    hdesktop = win32gui.GetDesktopWindow()
-
-    
-    # 创建设备上下文（DC）
-    desktop_dc = win32gui.GetWindowDC(hdesktop)
-    img_dc = win32ui.CreateDCFromHandle(desktop_dc)
-    mem_dc = img_dc.CreateCompatibleDC()
-    
-    # 创建位图对象
-    bitmap = win32ui.CreateBitmap()
-    bitmap.CreateCompatibleBitmap(img_dc, width, height)
-    mem_dc.SelectObject(bitmap)
-    
-    # 复制屏幕到位图
-    mem_dc.BitBlt((0, 0), (width, height), img_dc, (left, top), win32con.SRCCOPY)
-    
-    # 获取位图信息
-    bmpinfo = bitmap.GetInfo()
-    bmpstr = bitmap.GetBitmapBits(True)
-    img = np.frombuffer(bmpstr, dtype=np.uint8)
-    img.shape = (height, width, 4)  # BGRA format
-    
-    # 清理资源
-    mem_dc.DeleteDC()
-    win32gui.DeleteObject(bitmap.GetHandle())
-    img_dc.DeleteDC()
-    win32gui.ReleaseDC(hdesktop, desktop_dc)
-    
-    # 转换BGR为RGB
-    bgr = img[:, :, :3]  # 只取前3个通道（BGR）
-    rgb = bgr[..., ::-1]  # 反转通道顺序，变成RGB
-    return rgb  # 返回RGB格式
-
-def fast_get_pixel_color(x, y):
-    """快速获取单个像素的颜色"""
-    pixels = fast_grab_pixels(x, y, 1, 1)
-    r, g, b = pixels[0, 0]
-    return '%02X%02X%02X' % (r, g, b)
 
 class ScriptWorker(QThread):
     finished = pyqtSignal(int,str)
@@ -291,6 +244,21 @@ class ScriptWorker(QThread):
                     result = '%02X%02X%02X' % (r, g, b)
                     if is_similarity_enough(result,color,sim):
                         #music
+                        if self.params['play_music'] == 'true':
+                            music_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../config/mission_completed.wav'))
+                            if not os.path.exists(music_path):
+                                print("未找到音频文件 mission_completed.wav！")
+                            else:
+                                try:
+                                    from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+                                    from PyQt5.QtCore import QUrl
+                                    if not hasattr(self, '_music_player'):
+                                        self._music_player = QMediaPlayer()
+                                    self._music_player.setMedia(QMediaContent(QUrl.fromLocalFile(music_path)))
+                                    self._music_player.setVolume(self.value('music_volume'))
+                                    self._music_player.play()
+                                except Exception as e:
+                                    print(self, "播放失败", f"播放音频失败: {e}")
                         print(f"在第{x+1}个色块上找到第{i+1}个颜色{color}的近似值{result},相似度为{calc_similarity(result,color):.2f}")
                         mouseUp()
                         if self.context is not None:

@@ -2,22 +2,21 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QSpinBox, QDoubleSpinBox, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
-    QGroupBox, QCheckBox, QRadioButton, QButtonGroup, QMessageBox, QGridLayout,
-    QSizePolicy, QScrollArea, QComboBox, QFileDialog, QKeySequenceEdit, QShortcut, QSystemTrayIcon, QStyle,
+    QGroupBox, QCheckBox, QRadioButton, QButtonGroup, QMessageBox,QSlider,    QSizePolicy, QScrollArea, QComboBox, QFileDialog, QKeySequenceEdit, QShortcut, QSystemTrayIcon, QStyle,
     QColorDialog 
 )
 from PyQt5.QtGui import QColor,QFont, QKeySequence,QIcon
-from PyQt5.QtCore import Qt, QRect, QEvent, QEventLoop,QTimer
+from PyQt5.QtCore import Qt,QEvent, QEventLoop
 import ui_logic_mini
 from search_util_mini import ScriptWorker
 import color_card_util
 import os
 from logger_util import logger_manager
-from PyQt5.QtCore import QThread, pyqtSignal
-from ctypes import windll
+from PyQt5.QtCore import pyqtSignal
 import win32gui
 import win32api
-import win32con
+import win32event
+import winerror
 
 def excepthook(exc_type, exc_value, exc_traceback):
     logger = logger_manager.setup_logger()
@@ -78,7 +77,7 @@ class ColorMatcherApp(QMainWindow):
             # 基础设置
             'topmost', 'maximize', 'font_size','sim_step',
             'reset_layout', 'auto_save_config','check_color_card','auto_remove_color',
-            'random_color','random_color_k',
+            'random_color','random_color_k','play_music','music_volume',
             'use_script_shortcut','script_toggle',
             'close_popup',
             'save_log',
@@ -550,6 +549,43 @@ class ColorMatcherApp(QMainWindow):
         general_layout.addRow(self.check_color_card_cb)
         self.auto_remove_color_cb = QCheckBox("匹配成功后自动从表格中删除该颜色")
         general_layout.addRow(self.auto_remove_color_cb)
+        self.play_music_cb = QCheckBox("匹配成功后播放提示音")
+        # 新增试听按钮、音量滑动条和输入框
+        self.music_test_btn = QPushButton("试听提示音")
+        self.music_volume_slider = QSlider(Qt.Horizontal)
+        self.music_volume_slider.setRange(0, 100)
+        self.music_volume_slider.setValue(100)
+        self.music_volume_input = QSpinBox()
+        self.music_volume_input.setRange(0, 100)
+        self.music_volume_input.setValue(100)
+        # 联动滑动条和输入框
+        self.music_volume_slider.valueChanged.connect(self.music_volume_input.setValue)
+        self.music_volume_input.valueChanged.connect(self.music_volume_slider.setValue)
+        # 试听按钮点击事件（需补充实际播放逻辑）
+        def test_play_music():
+            music_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../config/mission_completed.wav'))
+            if not os.path.exists(music_path):
+                QMessageBox.warning(self, "未找到音频文件", "未找到音频文件 mission_completed.wav！")
+                return
+            try:
+                from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+                from PyQt5.QtCore import QUrl
+                if not hasattr(self, '_music_player'):
+                    self._music_player = QMediaPlayer()
+                self._music_player.setMedia(QMediaContent(QUrl.fromLocalFile(music_path)))
+                self._music_player.setVolume(self.music_volume_slider.value())
+                self._music_player.play()
+            except Exception as e:
+                QMessageBox.warning(self, "播放失败", f"播放音频失败: {e}")
+        self.music_test_btn.clicked.connect(test_play_music)
+        # 布局：试听按钮+音量滑动条+音量输入框
+        music_hbox = QHBoxLayout()
+        music_hbox.addWidget(self.play_music_cb)
+        music_hbox.addWidget(self.music_test_btn)
+        music_hbox.addWidget(QLabel("音量:"))
+        music_hbox.addWidget(self.music_volume_slider)
+        music_hbox.addWidget(self.music_volume_input)
+        general_layout.addRow(music_hbox)
         # 新增：点击16进制标签输入随机颜色功能开关
         self.random_color_cb = QCheckBox("点击16进制标签输入随机颜色")
         self.random_color_k_keyedit = QKeySequenceEdit()
@@ -1428,9 +1464,7 @@ def is_admin():
     
 if __name__ == "__main__":
     # 创建命名互斥锁
-    import win32event
-    import win32api
-    import winerror
+
     
     mutex_name = "ColorMatcherApp_SingleInstance_Mutex"
     mutex = win32event.CreateMutex(None, False, mutex_name)

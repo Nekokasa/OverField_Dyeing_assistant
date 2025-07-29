@@ -1,11 +1,12 @@
 import configparser
 import os
 import win32gui
+import win32ui
 import win32con
+import numpy as np
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QPen, QColor, QFont
-from PIL import ImageGrab
 import math
 # 参数校验相关
 
@@ -108,24 +109,59 @@ def is_similarity_enough(hex1, hex2, threshold):
     sim = calc_similarity(hex1, hex2)
     return sim >= threshold
 
-def get_pixel_color(x, y):
-    img = ImageGrab.grab()
-    return '%02X%02X%02X' % img.getpixel((x, y))
 
 def find_similar_color(x1, y1, x2, y2, target_hex, threshold=0.9):
-    # 截取指定区域
-    img = ImageGrab.grab(bbox=(x1, y1, x2+1, y2+1))
-    width, height = img.size
+    width = x2 - x1 + 1
+    height = y2 - y1 + 1
+    rgb_arr = fast_grab_pixels(x1, y1, width, height)  # shape: (height, width, 3)
     target_hex = target_hex.lstrip('#')
     for y in range(height):
         for x in range(width):
-            pixel = img.getpixel((x, y))
-            pixel_hex = '%02X%02X%02X' % pixel
+            pixel = rgb_arr[y, x]  # RGB
+            pixel_hex = '%02X%02X%02X' % tuple(pixel)
             sim = calc_similarity(pixel_hex, target_hex)
             if sim >= threshold:
                 # 返回屏幕上的实际坐标
                 return x1 + x, y1 + y
     return None  # 没找到
+def fast_grab_pixels(left, top, width, height):
+    """使用Windows API快速获取屏幕像素
+    返回numpy数组，shape为(height, width, 3)，RGB格式
+    """
+    # 获取桌面窗口句柄
+    hdesktop = win32gui.GetDesktopWindow()
+
+    
+    # 创建设备上下文（DC）
+    desktop_dc = win32gui.GetWindowDC(hdesktop)
+    img_dc = win32ui.CreateDCFromHandle(desktop_dc)
+    mem_dc = img_dc.CreateCompatibleDC()
+    
+    # 创建位图对象
+    bitmap = win32ui.CreateBitmap()
+    bitmap.CreateCompatibleBitmap(img_dc, width, height)
+    mem_dc.SelectObject(bitmap)
+    
+    # 复制屏幕到位图
+    mem_dc.BitBlt((0, 0), (width, height), img_dc, (left, top), win32con.SRCCOPY)
+    
+    # 获取位图信息
+    bmpinfo = bitmap.GetInfo()
+    bmpstr = bitmap.GetBitmapBits(True)
+    img = np.frombuffer(bmpstr, dtype=np.uint8)
+    img.shape = (height, width, 4)  # BGRA format
+    
+    # 清理资源
+    mem_dc.DeleteDC()
+    win32gui.DeleteObject(bitmap.GetHandle())
+    img_dc.DeleteDC()
+    win32gui.ReleaseDC(hdesktop, desktop_dc)
+    
+    # 转换BGR为RGB
+    bgr = img[:, :, :3]  # 只取前3个通道（BGR）
+    rgb = bgr[..., ::-1]  # 反转通道顺序，变成RGB
+    return rgb  # 返回RGB格式
+
 # 配置文件相关
 def get_default_config(config_fields):
     # 先用固定窗口参数计算能算出来的
@@ -150,6 +186,8 @@ def get_default_config(config_fields):
         'check_color_card': 'true',
         'auto_remove_color':'false',
         'random_color': 'true',
+        'play_music': 'true',
+        'music_volume': '100',
         'random_color_k': 'Q',
         'close_popup': 'false',
         'use_script_shortcut':'true',
