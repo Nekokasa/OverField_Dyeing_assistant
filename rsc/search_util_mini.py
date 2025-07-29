@@ -110,7 +110,7 @@ class ScriptWorker(QThread):
         while self.running:
             result = self.find_color_ranges(self.tabel_data)
             if result is not None:
-                # print("找到染色范围：", result)
+                print("找到染色范围：", result," 染色池相似度",self.params['pool_sim'])
                 for start_y, end_y, color_indices in result:
                     if self.params['drag_match'] == 'true' and self.running:
                         self.drag(start_y, end_y, color_indices)
@@ -142,14 +142,15 @@ class ScriptWorker(QThread):
         start_y = max(start_y, self.value('pool_top'))
         end_y = min(end_y, self.value('pool_bottom'))
         if start_y >= end_y:
-            self.stop()
+            self.running = False
             self.set_exit_reason(2)
+            self.error_msg = "drag：参数异常，滑块起始位置大于或等于滑块终止位置。"
             print("drag：参数异常，滑块起始位置大于或等于滑块终止位置。")
             return
         self.move_slider_to(start_y)
         mouseDown()
         step = self.value('step')
-        while self.running and self.find_slider() < end_y - self.value('slider_between_bottom'):
+        while self.running and self.find_slider() < end_y and self.find_slider() < self.value('pool_bottom') - self.value('slider_between_bottom'):
             self.match_preview_colors(color_indices)
             fast_move_rel(0, step)  # 使用快速移动方法
 
@@ -160,13 +161,14 @@ class ScriptWorker(QThread):
         start_y = max(start_y, self.value('pool_top'))
         end_y = min(end_y, self.value('pool_bottom'))
         if start_y >= end_y:
-            self.stop()
+            self.running = False
             self.set_exit_reason(2)
+            self.error_msg = "scan：参数异常，滑块起始位置大于或等于滑块终止位置。"
             print("scan：参数异常，滑块起始位置大于或等于滑块终止位置。")
             return
         self.move_slider_to(start_y)
         moveTo(self.pool_middle_x,self.value('down_y'))
-        while self.running and self.find_slider() < end_y - self.value('slider_between_bottom'):
+        while self.running and self.find_slider() < end_y and self.find_slider() < self.value('pool_bottom') - self.value('slider_between_bottom'):
             self.match_preview_colors(color_indices)
             click()     
             
@@ -335,7 +337,7 @@ class ScriptWorker(QThread):
                     pixel_hex = '%02X%02X%02X' % (r, g, b)
                     sim = calc_similarity(pixel_hex, color)
                     if sim >= similarity:
-                        found_y = current_y + y
+                        found_y = top_y + y
                         break
                 if found_y is not None:
                     break

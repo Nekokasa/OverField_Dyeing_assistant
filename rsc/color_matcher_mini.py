@@ -435,7 +435,7 @@ class ColorMatcherApp(QMainWindow):
         self.step_input.setRange(1, 20)
         # 构建垂直布局
         self.pool_sim_label = QLabel("染色池相似度:")
-        self.pool_sim_label.setToolTip("仅当勾选快速模糊匹配时该值有效。\n值越小，在染色池中选取的检索点越多。\n建议值在0.7附近，不宜太大，太严厉的相似度会导致检索点过少而错过颜色。")
+        self.pool_sim_label.setToolTip("仅当勾选快速模糊匹配时该值有效。\n值越小，在染色池中选取的检索点越多。\n建议值在0.8-0.9，不宜太大，太严厉的相似度会导致检索点过少而错过颜色。")
         pool_sim_row = QHBoxLayout()
         pool_sim_row.addWidget(self.pool_sim_label)
         pool_sim_row.addWidget(self.pool_sim_input)
