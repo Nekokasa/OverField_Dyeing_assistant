@@ -1,0 +1,506 @@
+//脚本主程序开始
+//外部参数定义
+Dim 跳格数, 鼠标拖拽像素, 平均延迟, 混色池相似度,拖拽延迟
+Dim 滑块定位X, 混色池顶部, 混色池底部,混色池左边，混色池右边
+Dim 第一块预览颜色X, 第一块预览颜色Y, 预览颜色平均宽度,置顶滑块坐标,滑块距底高度
+Dim 染色剂X, 染色剂Y, 下移X, 下移Y, 确认X, 确认Y, 模糊查找半径
+//内部参数定义
+Dim 跳格标记(4),混色池高度,滑块Y,总目标数组(),总目标代号字符串,游戏句柄
+Dim 滑块实际起点, 滑块实际终点, 上半滑块高度, 下半滑块高度
+Dim 总隔板组, 总颜色组,单色隔板组,单色小球组,临时隔板组,临时颜色组,隔板单颜色组,颜色总数,目标颜色组//快速匹配算法
+main
+//脚本主程序结束
+Sub main1//测试用
+    游戏窗口检测及置顶放大
+    参数初始化 
+End Sub
+Sub main
+    If Form1.ColorGrid.RowCount < 3 Then 
+        MessageBox "没有需要检索的颜色！脚本停止运行"
+        写日志 "没有需要检索的颜色！"
+        ExitScript
+    End If
+    游戏窗口检测及置顶放大
+    参数初始化 
+    //写日志(总目标数组(0))
+    If Form1.CheckBox1.Value = 1 Then 
+        写日志("开始快速模糊匹配")
+        快速模糊匹配
+    ElseIf Form1.OptionBox2.Value = 1 Then
+        写日志("开始鼠标拖拽匹配")
+        鼠标拖拽匹配 混色池顶部,混色池底部,总目标代号字符串,1
+    ElseIf Form1.OptionBox3.Value = 1 Then
+        写日志 ("开始逐行遍历匹配")
+        逐行遍历匹配 混色池顶部,混色池底部, 总目标代号字符串, 1
+    Else 
+        MessageBox "你好像什么模式都没选？！脚本停止运行"
+        写日志 "你好像什么模式都没选？！"
+        ExitScript
+    End If
+End Sub
+Function 游戏窗口检测及置顶放大
+    游戏句柄 = Plugin.Window.Find("UnityWndClass", "开放空间")//获取游戏窗口句柄
+    If 游戏句柄 = 0 Then 
+        MessageBox "游戏未启动！脚本停止运行"
+        写日志 "游戏未启动！"
+        ExitScript
+    End If
+    If Form1.TopCheckBox.Value = 1 Then 
+        Plugin.WindowEx5_01.SetWindowState 游戏句柄,8//置顶
+        Plugin.WindowEx5_01.SetWindowState 游戏句柄, 9//取消置顶	
+    End If
+    If Form1.MaxCheckBox.Value = 1 Then 
+        Plugin.Window.Max 游戏句柄//最大化	
+    End If
+    
+End Function
+
+Function 参数初始化
+    Erase 跳格标记
+    初始化总目标数组 
+    颜色总数 = UBound(总目标数组)
+    混色池相似度 = form1.SimBox2.Text
+    滑块定位X = int(Form1.SliderX.Text)
+    混色池顶部 = int(Form1.ColorPoolY1.Text)
+    混色池底部 = int(Form1.ColorPoolY2.Text)
+    混色池左边 = int(Form1.ColorPoolX1.Text)
+    混色池右边 = int(Form1.ColorPoolX2.Text)
+    混色池高度 = 混色池底部-混色池顶部+1
+    第一块预览颜色X =  int(Form1.ColorPreviewX.Text)
+    第一块预览颜色Y =  int(Form1.ColorPreviewY.Text)
+    预览颜色平均宽度 =  int(Form1.AverageWidth.Text)
+    鼠标拖拽像素 = int(form1.MousePixelBox.Text)
+    平均延迟 = int(Form1.AverageDelay.Text)
+    拖拽延迟 = int(Form1.MouseDelayBox.Text)
+    模糊查找半径 = int(Form1.RadiusBox.Text)
+    染色剂X = int(Form1.StainsX.Text)
+    染色剂Y = int(Form1.StainsY.Text)
+    确认X = int(Form1.ConfirmX.Text)
+    确认Y = int(Form1.ConfirmY.Text)
+    下移X = int(Form1.DownAdjustX.Text)
+    下移Y = int(Form1.DownAdjustY.Text)
+    滑块距底高度 = int(Form1.SliderHeight.Text)
+    滑块实际终点 = 混色池底部 - 滑块距底高度
+    跳格数 = int(Form1.SkipValue.Text)
+
+End Function
+
+Function 快速模糊匹配
+    Do
+        //开始或每次换池后清空集合
+        Redim 总隔板组(0), 总颜色组(0)
+        ReDim 隔板单颜色组(颜色总数,1)
+        //确定范围集
+        
+        //上半
+        滑块移动到 混色池底部, 0//滑块置底，查上半池
+        混色池区域更新隔板单颜色组 混色池顶部, 混色池顶部 + 0.5 * 混色池高度
+        //下半
+        滑块移动到 混色池顶部,0 
+        混色池区域更新隔板单颜色组 混色池顶部 + 0.5 * 混色池高度 + 1, 混色池底部
+        ////测试
+        //        For testindex = 1 to 颜色总数
+        //            TracePrint 隔板单颜色组(testindex, 0) & " " & 隔板单颜色组(testindex, 1)
+        //        Next
+        ///
+        插入多色隔板
+        //        TracePrint "最后总隔板组数组：" & Join(总隔板组, ",")
+        //        TracePrint "最后总颜色组数组：" & Join(总颜色组, ",")
+        //根据隔板查找混色池
+        For 隔板 = 0 To (UBound(总隔板组) - 1)
+            颜色代号组 = Split(总颜色组(隔板),"|")
+            
+                If Form1.OptionBox2.Value = 1 Then 
+                    For 代号 = 0 to UBound(颜色代号组)
+                        鼠标拖拽匹配 总隔板组(隔板), 总隔板组(隔板 + 1), 总颜色组(隔板), 0
+                    Next
+                Else 
+                    For 代号 = 0 to UBound(颜色代号组)
+                        逐行遍历匹配 总隔板组(隔板),总隔板组(隔板+1), 总颜色组(隔板), 0
+                    Next
+               	
+            End If
+      
+        Next
+       
+        //找到头了，更新染色池
+        换池
+    Loop
+End Function
+
+Function 混色池区域更新隔板单颜色组 (区域顶部,区域底部)
+    //    TracePrint 左上Y &" "&右下Y
+    For 颜色代号 = 1 to 颜色总数
+        目标颜色 = Split(总目标数组(颜色代号), "|")(0)
+        左上Y = 区域顶部
+        Do Until 左上Y > 区域底部 
+            //            TracePrint "颜色代号："&颜色代号
+            FindColorEx 混色池左边 ,左上Y,混色池右边,区域底部, 目标颜色, 0, 混色池相似度, tX, tY
+            If tX > 0 And tY > 0 Then 
+                插入单色隔板 tY,颜色代号//找到颜色就插入隔板+颜色
+                左上Y = tY + 模糊查找半径//缩小搜索范围
+            Else 
+                Exit Do//没找到就退出循环，查找下一个颜色
+            End If
+        Loop
+    Next
+End Function
+
+Function 插入单色隔板(单色坐标, 颜色代号)
+    Dim 前隔板, 后隔板, 临界隔板
+    ' 计算前隔板和b
+    前隔板 = 单色坐标 - 模糊查找半径
+    后隔板 = 单色坐标 + 模糊查找半径
+    
+    ' 判断数组是否为空
+    If 隔板单颜色组(颜色代号, 0) = "" AND 隔板单颜色组(颜色代号, 1) = "" Then 
+        ReDim 单色隔板组(1),单色小球组(0)
+        单色隔板组(0) = 前隔板
+        单色隔板组(1) = 后隔板
+        单色小球组(0) = 颜色代号
+    Else 
+        //                TracePrint 隔板单颜色组(颜色代号, 0)&" "&隔板单颜色组(颜色代号, 1)
+        单色隔板组=Split(隔板单颜色组(颜色代号, 0), "|")
+        单色小球组=Split(隔板单颜色组(颜色代号, 1), "|")
+        ' 获取最后一个元素
+        临界隔板 = 单色隔板组(UBound(单色隔板组))
+        //        TracePrint 临界隔板 &" "&(前隔板 - 1)
+        If int(临界隔板) >= int(前隔板 - 1) Then
+            //TracePrint "替换最后一个元素"
+            单色隔板组(UBound(单色隔板组)) = 后隔板
+        Else
+            //TracePrint "扩展单色隔板组数组（倒二为前隔板，倒一为后隔板）"
+            ReDim Preserve 单色隔板组(UBound(单色隔板组) + 2)
+            单色隔板组(UBound(单色隔板组) - 1) = 前隔板
+            单色隔板组(UBound(单色隔板组)) = 后隔板
+            
+            ' 扩展e数组（倒二为0，倒一为c）
+            ReDim Preserve 单色小球组(UBound(单色小球组) + 2)
+            单色小球组(UBound(单色小球组) - 1) = 0
+            单色小球组(UBound(单色小球组)) = 颜色代号
+        End If
+    End If
+    隔板单颜色组(颜色代号, 0) = Join(单色隔板组, "|")
+    隔板单颜色组(颜色代号, 1) = Join(单色小球组, "|")
+    ' 调试输出
+    //    TracePrint "当前隔板单颜色组0：" & 隔板单颜色组(颜色代号, 0)
+    //    TracePrint "当前隔板单颜色组1：" & 隔板单颜色组(颜色代号, 1)
+End Function
+
+Function 合并颜色代号(color1, color2)
+    If color1 = "0" OR color1 = "" Then 
+        合并颜色代号 = color2
+    Else 
+        If color2 = 0 Then 
+            合并颜色代号 = color1
+        Else 
+            合并颜色代号 = color1 & "|" & color2
+        End If
+    End If
+End Function
+
+Function 插入多色隔板
+    For 颜色代号 = 1 To 颜色总数
+        //        TracePrint 颜色代号
+        If 隔板单颜色组(颜色代号, 0) = "" AND 隔板单颜色组(颜色代号, 1) = "" Then 
+            //            TracePrint "颜色代号"&颜色代号&"不存在，跳过该颜色"
+        else
+            If IsEmpty(总隔板组(0)) = True And IsEmpty(总颜色组(0)) = True Then //总隔板颜色为空，直接加入单颜色隔板
+                //                TracePrint "总隔板颜色为空，直接加入单颜色隔板"
+                总隔板组 = Split(隔板单颜色组(颜色代号, 0), "|")
+                总颜色组 = Split(隔板单颜色组(颜色代号, 1), "|")
+                //                TracePrint "初始总隔板组数组：" & Join(总隔板组, ",")
+                //                TracePrint "初始总颜色组数组：" & Join(总颜色组, ",")
+            Else //总隔板不为空，开始插入隔板和颜色
+                //                TracePrint "总隔板不为空，开始插入隔板和颜色"
+                //初始准备
+                //                TracePrint "当前总隔板组数组：" & Join(总隔板组, ",")
+                //                TracePrint "当前总颜色组数组：" & Join(总颜色组, ",")
+                单色隔板组 = Split(隔板单颜色组(颜色代号, 0), "|")
+                单色小球组 = Split(隔板单颜色组(颜色代号, 1), "|")
+                //                TracePrint "当前单色隔板组：" & Join(单色隔板组, ",")
+                //                TracePrint "当前单色小球组：" & Join(单色小球组, ",")
+                Redim 临时隔板组(UBound(总隔板组) + UBound(单色隔板组) + 1)
+                Redim 临时颜色组(UBound(临时隔板组) - 1)
+                总下标 = 0
+                单下标 = 0
+                //                TracePrint UBound(临时隔板组)
+                For 临时下标 = 0 To UBound(临时隔板组)
+                    TracePrint "临时下标:"&临时下标&" 总下标:"&总下标&" 单下标："&单下标
+                    //处理隔板
+                    If int(总隔板组(总下标)) = int(单色隔板组(单下标)) Then 
+                        Redim Preserve 临时隔板组(UBound(临时隔板组)- 1)
+                        Redim Preserve 临时颜色组(UBound(临时颜色组)- 1)
+                        临时隔板组(临时下标) = 总隔板组(总下标)
+                        总下标 = 总下标 + 1
+                        单下标 = 单下标 + 1
+                    ElseIf int(总隔板组(总下标)) < int(单色隔板组(单下标)) Then
+                        临时隔板组(临时下标) = 总隔板组(总下标)
+                        总下标 = 总下标 + 1
+                    Else 
+                        临时隔板组(临时下标) = 单色隔板组(单下标)
+                        单下标 = 单下标 + 1
+                    End If
+                    //处理颜色
+                    If (总下标 - 1) >= 0 AND 总下标 <= UBound(总隔板组)Then 
+                        临时颜色组(临时下标) = 合并颜色代号(临时颜色组(临时下标),总颜色组(总下标 - 1))
+                    End If
+                    If (单下标 - 1) >= 0 AND 单下标 <= UBound(单色隔板组) Then 
+                        临时颜色组(临时下标) = 合并颜色代号(临时颜色组(临时下标),单色小球组(单下标 - 1))
+                    End If
+                    If 总下标 > UBound(总隔板组) OR 单下标 > UBound(单色隔板组) Then //有数组越界就退出循环
+                        Exit For
+                    End If
+                Next
+                If 总下标 <= UBound(总隔板组) Then 
+                    剩余长度 =  UBound(总隔板组) - 总下标
+                    For 差值 = 0 To 剩余长度
+                        临时隔板组(UBound(临时隔板组) - 差值) = 总隔板组(UBound(总隔板组) - 差值)
+                        临时颜色组(UBound(临时颜色组) - 差值) = 总颜色组(UBound(总颜色组) - 差值)
+                    Next
+                ElseIf 单下标 <= UBound(单色隔板组) Then
+                    剩余长度 =  UBound(单色隔板组) - 单下标
+                    For 差值 = 0 To 剩余长度
+                        临时隔板组(UBound(临时隔板组) - 差值) = 单色隔板组(UBound(单色隔板组) - 差值)
+                        临时颜色组(UBound(临时颜色组) - 差值) = 单色小球组(UBound(单色小球组) - 差值)
+                    Next
+        
+                End If
+                总隔板组 = 临时隔板组
+                总颜色组 = 临时颜色组
+            End If
+        End If
+    next
+    //    TracePrint "最后总隔板组数组：" & Join(总隔板组, ",")
+    //    TracePrint "最后总颜色组数组：" & Join(总颜色组, ",")
+End Function
+//只能从上往下
+Function 鼠标拖拽匹配(起点纵坐标, 终点纵坐标, 目标代号字符串, 是否换池)//0不换池，替他换池
+    起点纵坐标 = int(起点纵坐标)
+    终点纵坐标 = int(终点纵坐标)
+    If 起点纵坐标 > 终点纵坐标  Then 
+        //        TracePrint "鼠标拖拽匹配参数错误"
+        Exit Function
+    End If
+    If 终点纵坐标 > 滑块实际终点 Then 
+        终点纵坐标 = 滑块实际终点
+    End If
+    If 起点纵坐标 < 混色池顶部 Then 
+        起点纵坐标 = 混色池顶部
+    End If
+    If 起点纵坐标 > 终点纵坐标  Then 
+        起点纵坐标 = 终点纵坐标 
+    End If
+    Do
+        滑块移动到 起点纵坐标,0
+        delay 平均延迟
+        移动到滑块 1
+        delay 平均延迟
+        Do Until 滑块Y >= 终点纵坐标
+            //            TracePrint 滑块Y&" "&终点纵坐标&" "&滑块实际终点
+            LeftDown 1
+            MoveR 0, 鼠标拖拽像素
+            移动到滑块 0
+            Delay 拖拽延迟
+            匹配预览颜色 目标代号字符串
+   
+        Loop
+        //找到头了。0不换池，其他换池
+        LeftUp 1
+        If 是否换池 <> 0  Then
+            换池 
+        Else 
+            Exit Do
+        End If
+    Loop
+End Function
+
+Function 逐行遍历匹配(起点纵坐标, 终点纵坐标, 目标代号字符串, 是否换池)//0不换池，其他换池
+    起点纵坐标 = int(起点纵坐标)
+    终点纵坐标 = int(终点纵坐标)
+    If 起点纵坐标 > 终点纵坐标  Then 
+        //        TracePrint "鼠标拖拽匹配参数错误"
+        Exit Function
+    End If
+    If 终点纵坐标 > 滑块实际终点 Then 
+        终点纵坐标 = 滑块实际终点
+    End If
+    If 起点纵坐标 < 混色池顶部 Then 
+        起点纵坐标 = 混色池顶部
+    End If
+    If 起点纵坐标 > 终点纵坐标  Then 
+        起点纵坐标 = 终点纵坐标 
+    End If
+    Do
+        滑块移动到 起点纵坐标,0
+        delay 平均延迟
+        移动到滑块 0
+        delay 平均延迟
+        MoveTo 下移X,下移Y
+        Do Until 滑块Y >= 终点纵坐标
+            LeftClick 1
+            匹配预览颜色 目标代号字符串
+            移动到滑块 0
+        loop
+        //找到头了。0不换池，1换池
+
+        If 是否换池 <> 0 Then
+            换池 
+        Else 
+            Exit Do
+        End If
+    Loop
+End Function
+
+Function 移动到滑块(mode)//0不移动只更新坐标，其他则移动
+    FindColor 滑块定位X, 0.95*混色池顶部, 滑块定位X, 混色池底部, "FFFFFF", 滑块X, 滑块Y
+    If 滑块Y >= 0 Then 
+        if mode <> 0 then
+            MoveTo 滑块定位X, 滑块Y
+        endif
+    Else 
+        MessageBox "找不到滑块。貌似不在染色区域。脚本停止"
+        写日志 "找不到滑块。貌似不在染色区域"
+        EndScript
+    End If
+End Function
+Function 滑块移动到(intY, mode)//0绝对移动，1相对移动
+    If mode <> 0 AND mode <> 1 Then 
+        Exit Function
+    End If 
+    移动到滑块 1
+    delay 平均延迟
+    LeftDown 1
+    Delay 平均延迟
+    If mode = 0 Then
+        MoveR 0, intY - 滑块Y
+    Else 
+        MoveR 0,intY
+    End If
+    delay 平均延迟
+    MoveR 0, 1
+    LeftUp 1
+End Function
+
+Function 匹配预览颜色(目标代号字符串)
+    目标代号数组 = Split(目标代号字符串, "|")
+    If IsEmpty(目标代号数组) = False Then 
+        If 目标代号数组(0) <> 0 Then 
+            For tagi = 0 To UBound(目标代号数组)
+                目标 = Split(总目标数组(目标代号数组(tagi)), "|")
+                目标颜色 = 目标(0)
+                相似度 = 目标(1)
+                For x = 0 To 4
+                    If 跳格标记(x) >= 0 Then 
+                        //TracePrint "进入匹配预览颜色(目标数组)"&目标数组(0)
+                        intX = 第一块预览颜色X + x * 预览颜色平均宽度
+                        intY = 第一块预览颜色Y
+                        //TracePrint 目标颜色 &" "&相似度 
+                        FindColorEx intX, intY, intX, intY, 目标颜色, 0, 相似度, tX, tY
+                        If tX > 0 And tY > 0 Then 
+                            近似颜色 = 转BGR(GetPixelColor(tX, tY))
+                            If Form1.PlayMusicCheckBox.Value = 1 Then 
+                                Plugin.Media.Play 提示音路径
+                            End If
+                            Dim 结果
+                            结果 = MsgBox("目标颜色"&转BGR(目标颜色)&"在第" & (x + 1) & "个的接近匹配值"&近似颜色& vbcrlf &"点击确定停止查找 点击取消继续查找", 1)
+                            写日志("已找到目标颜色"&转BGR(目标颜色)&"在第" & (x + 1) & "个的接近匹配值"&近似颜色)
+                            If 结果 = 1 Then 
+                                写日志("已找到目标颜色"&转BGR(目标颜色)&"在第" & (x + 1) & "个。若没有则请尝试往上滑动几格滑块。记得删除已找到的颜色！")
+                                LeftUp 1
+                                EndScript
+                            Else 
+                                写日志 "忽略，继续查找"
+                                跳格标记(x) = - 跳格数 
+                                If Form1.OptionBox2.Value = 1 Then 
+                                    移动到滑块 1
+                                Else 
+                                    MoveTo 下移X,下移Y
+                                End If
+                            End If
+                        End If
+
+                    Else 
+                        跳格标记(x) = 跳格标记(x) + 1
+                    End If
+                Next
+            Next
+        End If
+    End If
+End Function
+
+Function 初始化总目标数组
+    Erase 总目标数组
+    总目标代号字符串 = ""
+    总行数 = Form1.ColorGrid.RowCount - 2
+    ReDim 总目标数组(总行数)
+    For rowi = 1 To 总行数
+        颜色相似度组合 = 转BGR(Form1.ColorGrid.GetItemText(rowi,0))&"|"&Form1.ColorGrid.GetItemText(rowi,1)
+        总目标数组(rowi) = 颜色相似度组合
+        总目标代号字符串 = 总目标代号字符串&"|"&rowi
+    Next
+    总目标代号字符串 = mid(目标代号字符串,2)
+    //    写日志(列表转字符串)
+End Function
+
+Function 换池
+    MoveTo 染色剂X, 染色剂Y
+    LeftClick 1
+    Delay 3*平均延迟
+    LeftClick 1
+    Delay 3*平均延迟
+    MoveTo 确认X, 确认Y
+    Delay 3*平均延迟
+    LeftClick 1
+    Delay 9*平均延迟
+End Function
+
+
+Function 更新范围集(新点)
+    新上界 = 新点 - 模糊查找半径
+    新下界 = 新点 + 模糊查找半径
+    If 新上界 < 混色池顶部 Then 
+        新上界 = 混色池顶部
+    End If
+    If 新下界 > 混色池底部 Then 
+        新下界 = 混色池底部
+    End If
+    //处理初始状态（两个字符串都为空）
+    If 起点范围集 = "" And 终点范围集 = "" Then
+        起点范围集 = CStr(新上界)
+        终点范围集 = CStr(新下界)
+        Exit Function
+    End If
+    
+    //获取下边界最后一个数值
+    Dim arrDown, last_down
+    arrDown = Split(终点范围集, "|")
+    last_down = CLng(arrDown(UBound(arrDown)))
+    
+    If 新上界 > last_down Then//范围重合，扩宽原范围
+        起点范围集 = 起点范围集 & "|" & 新上界
+        终点范围集 = 终点范围集 & "|" & 新下界
+    Else //范围不重合，新增该范围
+        arrDown(UBound(arrDown)) = CStr(新下界)
+        终点范围集 = Join(arrDown, "|")
+    End If
+End Function
+
+Function 混色池区域更新范围集 (左上Y,右下Y,目标数组)
+    exitflag = true
+    //    TracePrint 左上Y &" "&右下Y
+    Do Until 左上Y > 右下Y OR exitflag = False
+        exitflag = False
+        For i = 1 to UBound(目标数组)   
+            目标颜色 = Split(目标数组(i), "|")(0)
+            //写日志("目标颜色："&目标颜色)
+            FindColorEx 混色池左边 ,左上Y,混色池右边,右下Y, 目标颜色, 0, 混色池相似度, tX, tY
+            If tX > 0 And tY > 0 Then 
+                exitflag = true
+                更新范围集 tY
+                左上Y = tY + 模糊查找半径
+                //TracePrint 起点范围集 &" "&终点范围集&" "&左上Y
+            End If
+        Next
+    Loop
+End Function
