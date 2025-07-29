@@ -1,6 +1,6 @@
 import os
-from search_util import calc_similarity
-from ui_logic import is_valid_hex_color
+from search_util_mini import calc_similarity
+from ui_logic_mini import is_valid_hex_color
 def load_color_card(filepath=None):
     """
     读取色卡文件，返回[(hex, name), ...]。
