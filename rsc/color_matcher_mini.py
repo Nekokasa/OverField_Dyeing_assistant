@@ -1423,13 +1423,6 @@ def is_admin():
         return False
     
 if __name__ == "__main__":
-    if not is_admin():
-        # 重新以管理员权限启动
-        import ctypes
-        ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable, ' '.join(['"' + arg + '"' for arg in sys.argv]), None, 1)
-        sys.exit(0)
-    
     # 创建命名互斥锁
     import win32event
     import win32api
