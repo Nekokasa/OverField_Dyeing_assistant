@@ -37,7 +37,7 @@ def build_with_nuitka():
         f"--output-filename={app_name}",
         "--remove-output",
         "--enable-plugin=pyqt5",
-        "--windows-disable-console",
+        "--windows-console-mode=disable",
         "--nofollow-import-to=cv2",      # 排除 cv2
         "--nofollow-import-to=PIL",       # 排除 PIL
         "--include-data-dir=%s=icon" % os.path.join(current_dir, "icon"),
