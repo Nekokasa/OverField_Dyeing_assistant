@@ -82,8 +82,7 @@ class ColorMatcherApp(QMainWindow):
             'use_script_shortcut','script_toggle',
             'close_popup',
             'save_log',
-            # 防呆设置
-            'prevent_duplicate',
+            
             'confirm_config','confirm_delete',
             'window_x', 'window_y', 'window_width', 'window_height',
             # 其它参数
@@ -251,10 +250,6 @@ class ColorMatcherApp(QMainWindow):
         input_data = self.get_current_row_inputs()
         if input_data == None:
             return
-        if hasattr(self, 'prevent_duplicate_cb') and self.prevent_duplicate_cb.isChecked():
-            # 如果启用了防止重复查找项，则检查当前输入是否唯一
-            if not self.is_row_unique(input_data[1]):
-                return
         row = self.table.rowCount()
         print("添加颜色: %s, %s, %s" % input_data)
         self.insert_or_update_row(row,*input_data)
@@ -272,9 +267,6 @@ class ColorMatcherApp(QMainWindow):
             return
         if current_data and current_data == input_data:
             return
-        if hasattr(self, 'prevent_duplicate_cb') and self.prevent_duplicate_cb.isChecked():
-            if not self.is_row_unique(input_data[1],exclude_row=self.editing_row):
-                return
         print("修改颜色: %s, %s, %s → %s, %s, %s" % (current_data + input_data))
         self.insert_or_update_row(self.editing_row,*input_data)
         self.sort_table()
@@ -750,21 +742,12 @@ class ColorMatcherApp(QMainWindow):
             except Exception as e:
                 QMessageBox.warning(self, "打开失败", f"无法打开日志文件夹: {e}")
         self.btn_open_log.clicked.connect(open_log_folder)
-
-        # --- 防呆设置分区 ---
-        self.foolproof_group = QGroupBox("防呆设置")
-        foolproof_layout = QVBoxLayout(self.foolproof_group)
-        foolproof_layout.setSpacing(16)
-        # 新增防止插入重复查找项
-        self.prevent_duplicate_cb = QCheckBox("添加/修改表格数据时防止插入重复查找项")
-        foolproof_layout.addWidget(self.prevent_duplicate_cb)
         # 新增删除/清空表格数据时二次确认
         self.confirm_delete_cb = QCheckBox("删除/清空表格数据时二次确认")
-        foolproof_layout.addWidget(self.confirm_delete_cb)
+        general_layout.addRow(self.confirm_delete_cb)
         # 保存/恢复默认配置警告复选框
         self.confirm_config_cb = QCheckBox("保存/恢复默认配置时二次确认")
-        foolproof_layout.addWidget(self.confirm_config_cb) 
-        general_layout.addRow(self.foolproof_group) 
+        general_layout.addRow(self.confirm_config_cb) 
         # 新增批量勾选功能
         self.install_batch_checkbox_toggle(general_widget)
         # 绑定联动逻辑：只在勾选reset_layout_cb时自动勾选auto_save_config_cb
@@ -850,7 +833,7 @@ class ColorMatcherApp(QMainWindow):
         param_scroll.setWidgetResizable(True)
         param_scroll.setWidget(param_widget)
         # 滚动区下方的“获取参数”“显示坐标位置”按钮
-        btn_get_param = QPushButton("获取窗口参数并计算坐标"); 
+        btn_get_param = QPushButton("获取参数并计算坐标"); 
         btn_get_param.clicked.connect(self.get_param_action)
         btn_calculate_param = QPushButton("仅计算坐标"); 
         btn_calculate_param.clicked.connect(self.calculat_param_action)

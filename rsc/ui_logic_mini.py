@@ -162,6 +162,12 @@ def fast_grab_pixels(left, top, width, height):
     bgr = img[:, :, :3]  # 只取前3个通道（BGR）
     rgb = bgr[..., ::-1]  # 反转通道顺序，变成RGB
     return rgb  # 返回RGB格式
+def get_pixel_color(x, y):
+    """
+    快速获取屏幕上某个像素的RGB值。
+    """
+    return '%02X%02X%02X' % tuple(fast_grab_pixels(x, y, 1, 1)[0, 0])
+
 def get_base_dir():
     """
     获取资源根目录，兼容源码和打包后 exe 路径。
@@ -207,8 +213,6 @@ def get_default_config(config_fields):
         'use_script_shortcut':'true',
         'script_toggle':'F10',
         'save_log': 'true',
-        #防呆设置
-        'prevent_duplicate': 'true',
         'confirm_delete': 'true',
         'confirm_config': 'true',
         #其它参数

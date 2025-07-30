@@ -110,7 +110,7 @@ class ScriptWorker(QThread):
         while self.running:
             result = self.find_color_ranges(self.tabel_data)
             if result is not None:
-                print("找到染色范围：", result," 染色池相似度",self.params['pool_sim'])
+                # print("找到染色范围：", result," 染色池相似度",self.params['pool_sim'])
                 for start_y, end_y, color_indices in result:
                     if self.params['drag_match'] == 'true' and self.running:
                         self.drag(start_y, end_y, color_indices)
@@ -245,11 +245,26 @@ class ScriptWorker(QThread):
                     r, g, b = pixels[0, x * pw]
                     result = '%02X%02X%02X' % (r, g, b)
                     if is_similarity_enough(result,color,sim):
+                        mouseUp()
+                        self.delay(self.value('delay'))
+                        max_tries = 20  # 最多尝试20次
+                        tries = 0
+                        while self.running and get_pixel_color(px + x * pw, py) != result and tries < max_tries:
+                            moveTo(self.pool_middle_x, self.pool_middle_y*2-self.value('down_y'))
+                            click()
+                            self.delay(self.value('delay'))
+                            tries += 1
+                        if tries >= max_tries:
+                            self.move_to_slider()
+                            mouseDown()
+                            continue
+                        moveTo(px + x * pw, py)
+                        click()
                         #music
                         if self.params['play_music'] == 'true':
                             music_path = os.path.join(get_base_dir(), 'config', 'mission_completed.wav')
                             if not os.path.exists(music_path):
-                                print("未找到音频文件 mission_completed.wav！")
+                                print("匹配成功提示音播放失败，未找到音频文件 mission_completed.wav！")
                             else:
                                 try:
                                     from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -262,7 +277,6 @@ class ScriptWorker(QThread):
                                 except Exception as e:
                                     print(self, "播放失败", f"播放音频失败: {e}")
                         print(f"在第{x+1}个色块上找到第{i+1}个颜色{color}的近似值{result},相似度为{calc_similarity(result,color):.2f}")
-                        mouseUp()
                         if self.context is not None:
                             answer = self.context.ask_user("确认", f"在第{x+1}个色块上找到第{i+1}个颜色{color}的近似值{result},相似度为{calc_similarity(result,color):.2f}，是否继续寻找其他可能的匹配？\n点击\"确定\"接受当前结果并结束脚本\n点击\"取消\"继续寻找")
                             if answer:
