@@ -1,5 +1,6 @@
 import configparser
 import os
+import sys
 import win32gui
 import win32ui
 import win32con
@@ -161,7 +162,20 @@ def fast_grab_pixels(left, top, width, height):
     bgr = img[:, :, :3]  # 只取前3个通道（BGR）
     rgb = bgr[..., ::-1]  # 反转通道顺序，变成RGB
     return rgb  # 返回RGB格式
-
+def get_base_dir():
+    """
+    获取资源根目录，兼容源码和打包后 exe 路径。
+    """
+    if hasattr(sys, 'frozen'):
+        # PyInstaller 打包后
+        if hasattr(sys, '_MEIPASS'):
+            return sys._MEIPASS
+        # Nuitka 或其它打包方式
+        return os.path.dirname(sys.argv[0])
+    # 源码运行，返回项目根目录
+    elif not sys.argv[0].endswith('.py'):
+        return os.path.dirname(__file__)
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # 配置文件相关
 def get_default_config(config_fields):
     # 先用固定窗口参数计算能算出来的

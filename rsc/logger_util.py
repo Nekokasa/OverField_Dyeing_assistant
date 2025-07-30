@@ -3,7 +3,8 @@ import os
 import sys
 import datetime
 import faulthandler
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+from ui_logic_mini import get_base_dir
+BASE_DIR = get_base_dir()
 
 class LoggerManager:
     def __init__(self, log_dir='log'):

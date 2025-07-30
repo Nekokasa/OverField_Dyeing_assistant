@@ -25,10 +25,12 @@ def build_app():
         # '--console',  # 调试时建议保留控制台
         f'--icon={icon_path}',
         '--noconfirm',
-        '--exclude-module=cv2'
-        # f'--add-data={os.path.join(current_dir, "config")};config',
+        '--exclude-module=cv2',
+        '--exclude-module=PIL'
+        
+        f'--add-data={os.path.join(current_dir, "config")};config',
         # f'--add-data={os.path.join(current_dir, "rsc")};rsc',
-        # f'--add-data={os.path.join(current_dir, "icon")};icon',
+        f'--add-data={os.path.join(current_dir, "icon")};icon',
         # f'--add-data={os.path.join(current_dir, "log")};log',
         # '--hidden-import=PyQt5',
         # '--hidden-import=PyQt5.QtCore',

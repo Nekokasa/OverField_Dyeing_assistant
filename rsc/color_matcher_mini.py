@@ -18,6 +18,7 @@ import win32api
 import win32event
 import winerror
 
+
 def excepthook(exc_type, exc_value, exc_traceback):
     logger = logger_manager.setup_logger()
     import traceback
@@ -47,7 +48,7 @@ class ColorMatcherApp(QMainWindow):
         self.askUserSignal.connect(self.handle_ask_user)
         self.showMessageSignal.connect(self.show_message)
         self.script_thread = None
-        self.setWindowIcon(QIcon(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'icon', 'icon.png'))))
+        self.setWindowIcon(QIcon(os.path.join(ui_logic_mini.get_base_dir(), 'icon', 'icon.png')))
 
         self.exit_reasons = {
             0: "脚本正常结束。",
@@ -126,8 +127,6 @@ class ColorMatcherApp(QMainWindow):
         # self.param_box.setMaximumWidth(self.input_box.minimumSizeHint().width())
         if hasattr(self, 'left_widget'):
             boxes = self.left_widget.findChildren(QGroupBox)
-            # for box in boxes:
-            #     print(box.title(), ":", box.minimumSizeHint().width())
             if boxes:
                 # 找出最大的minimumSizeHint宽度
                 min_width = max(box.minimumSizeHint().width() for box in boxes)
@@ -143,7 +142,29 @@ class ColorMatcherApp(QMainWindow):
         self.setCentralWidget(self.tabs)
         self.create_search_tab()
         self.create_settings_tab()
+        self.create_about_tab()
         self.tabs.currentChanged.connect(lambda: self.apply_font_size())
+
+    def create_about_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        about_html = (
+            "<b>开放空间染色助手 v1.0.0</b><br><br>"
+            "作者：猫伞Nekokasa<br>"
+            "B站主页：<a href='https://space.bilibili.com/179852964'>https://space.bilibili.com/179852964</a><br><br>"
+            "本工具仅供个人学习、交流和娱乐用途，禁止任何形式的商业使用。<br>"
+            "如需转载、二次开发或其他用途，请联系作者并注明出处。<br><br>"
+            "<span style='color:#888'>免责声明：本软件为免费工具，使用过程中产生的任何风险和损失，作者不承担任何责任。</span>"
+        )
+        label = QLabel()
+        label.setTextFormat(Qt.RichText)
+        label.setText(about_html)
+        label.setOpenExternalLinks(True)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        layout.addStretch(1)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "关于")
 
     def on_hex_changed(self):
         text = self.hex_input.text().strip().upper()
@@ -323,7 +344,7 @@ class ColorMatcherApp(QMainWindow):
         self.hex_input.installEventFilter(self) # 安装事件过滤器以处理快捷键
         self.color_picking_btn = QPushButton()
         self.color_picking_btn.clicked.connect(self.color_pick)
-        self.color_picking_btn.setIcon(QIcon(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'icon', 'color_picker.png'))))
+        self.color_picking_btn.setIcon(QIcon(os.path.join(ui_logic_mini.get_base_dir(), 'icon', 'color_picker.png')))
         hex_hbox = QHBoxLayout()
         hex_hbox.addWidget(self.hex_input)
         hex_hbox.addWidget(self.color_picking_btn)
@@ -563,7 +584,7 @@ class ColorMatcherApp(QMainWindow):
         self.music_volume_input.valueChanged.connect(self.music_volume_slider.setValue)
         # 试听按钮点击事件（需补充实际播放逻辑）
         def test_play_music():
-            music_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../config/mission_completed.wav'))
+            music_path = os.path.join(ui_logic_mini.get_base_dir(), 'config', 'mission_completed.wav')
             if not os.path.exists(music_path):
                 QMessageBox.warning(self, "未找到音频文件", "未找到音频文件 mission_completed.wav！")
                 return
@@ -709,12 +730,27 @@ class ColorMatcherApp(QMainWindow):
         self.close_popup_cb = QCheckBox("导入表格/导出表格/保存配置成功不再弹窗提示")
         general_layout.addRow(self.close_popup_cb)
         #保存日志
-        self.save_log_cb = QCheckBox("保存日志")
-        general_layout.addRow(self.save_log_cb)
+        self.save_log_cb = QCheckBox("每次打开脚本时生成日志")
+        self.btn_open_log = QPushButton("打开日志文件夹")
+        self.btn_clear_log = QPushButton("清空日志")
+        log_btn_hbox = QHBoxLayout()
+        log_btn_hbox.addWidget(self.save_log_cb)
+        log_btn_hbox.addWidget(self.btn_open_log)
+        log_btn_hbox.addStretch(1)
+        general_layout.addRow(log_btn_hbox)
         def on_save_log_cb_changed(state):
             logger_manager.set_file_logging(state == 2)
-        # 绑定信号
         self.save_log_cb.stateChanged.connect(on_save_log_cb_changed)
+        def open_log_folder():
+            log_dir = os.path.join(ui_logic_mini.get_base_dir(), 'log')
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            try:
+                os.startfile(log_dir)
+            except Exception as e:
+                QMessageBox.warning(self, "打开失败", f"无法打开日志文件夹: {e}")
+        self.btn_open_log.clicked.connect(open_log_folder)
+
         # --- 防呆设置分区 ---
         self.foolproof_group = QGroupBox("防呆设置")
         foolproof_layout = QVBoxLayout(self.foolproof_group)
@@ -755,7 +791,7 @@ class ColorMatcherApp(QMainWindow):
         row.addWidget(QLabel("横坐标:")); row.addWidget(self.game_x_input); row.addSpacing(10); row.addWidget(QLabel("纵坐标:")); row.addWidget(self.game_y_input);
         layout_game.addRow("窗口左上角", row)
         row = QHBoxLayout();
-        row.addWidget(QLabel("高度:")); row.addWidget(self.game_height_input); row.addSpacing(10); row.addWidget(QLabel("宽度:")); row.addWidget(self.game_width_input)
+        row.addWidget(QLabel("宽度:")); row.addWidget(self.game_width_input); row.addSpacing(10); row.addWidget(QLabel("高度:")); row.addWidget(self.game_height_input)
         layout_game.addRow("窗口大小", row)
         param_main_vbox.addWidget(self.group_game)
         
@@ -814,11 +850,13 @@ class ColorMatcherApp(QMainWindow):
         param_scroll.setWidgetResizable(True)
         param_scroll.setWidget(param_widget)
         # 滚动区下方的“获取参数”“显示坐标位置”按钮
-        btn_get_param = QPushButton("获取参数"); 
+        btn_get_param = QPushButton("获取窗口参数并计算坐标"); 
         btn_get_param.clicked.connect(self.get_param_action)
+        btn_calculate_param = QPushButton("仅计算坐标"); 
+        btn_calculate_param.clicked.connect(self.calculat_param_action)
         self.btn_show_pos = QPushButton("显示坐标位置"); 
         self.btn_show_pos.clicked.connect(self.toggle_param_positions)
-        btn_top_hbox = QHBoxLayout(); btn_top_hbox.addWidget(btn_get_param); btn_top_hbox.addWidget(self.btn_show_pos)
+        btn_top_hbox = QHBoxLayout(); btn_top_hbox.addWidget(btn_get_param); btn_top_hbox.addWidget(btn_calculate_param); btn_top_hbox.addWidget(self.btn_show_pos)
         # 设置按钮不被压缩，防止文字遮挡
         btn_get_param.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         self.btn_show_pos.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
@@ -914,8 +952,7 @@ class ColorMatcherApp(QMainWindow):
 
     def reset_config(self):
         # 恢复为config.ini中的默认值，所有设置参数都恢复
-        config_path = os.path.join(os.path.dirname(__file__), '../config/config.ini')
-        config_path = os.path.normpath(config_path)
+        config_path = os.path.join(ui_logic_mini.get_base_dir(), 'config', 'config.ini')
         data = ui_logic_mini.load_config_from_file(config_path, self.get_config_fields())
         
         for k in self.get_config_fields():
@@ -958,11 +995,11 @@ class ColorMatcherApp(QMainWindow):
 
     def save_config(self):
         # 配置文件路径调整到 config 目录
-        config_path = os.path.join(os.path.dirname(__file__), '../config/config.ini')
-        config_path = os.path.normpath(config_path)
+        config_path = os.path.join(ui_logic_mini.get_base_dir(), 'config', 'config.ini')
         config_dir = os.path.dirname(config_path)
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
+
         data = {k: self.get_config_value(k) for k in self.get_config_fields()}
         geo = self.geometry()
         data['window_x'] = str(geo.x())
@@ -1098,8 +1135,7 @@ class ColorMatcherApp(QMainWindow):
                         #检查色卡
                         if hasattr(self, 'check_color_card_cb') and self.check_color_card_cb.isChecked():
                             # 色卡文件路径调整到 config 目录
-                            color_card_path = os.path.join(os.path.dirname(__file__), '../config/color_card.txt')
-                            color_card_path = os.path.normpath(color_card_path)
+                            color_card_path = os.path.join(ui_logic_mini.get_base_dir(), 'config', 'color_card.txt')
                             if not os.path.exists(color_card_path):
                                 QMessageBox.warning(self, "缺少色卡", "未找到色卡文件 color_card.txt！")
                                 return
@@ -1108,7 +1144,7 @@ class ColorMatcherApp(QMainWindow):
                             if similar_list:
                                 card_hex, card_name, sim = similar_list[0]
                                 reply = QMessageBox.question(
-                                    self, "检测到可制作色卡色", 
+                                    self, "检测到可制作色", 
                                     f"检测到第{row+1}行颜色 {row_data[1]} 与可制作染色剂 {card_name}({card_hex}) 相似度为 {sim:.2f}，是否继续匹配？",
                                     QMessageBox.Yes | QMessageBox.No
                                 )
@@ -1152,13 +1188,34 @@ class ColorMatcherApp(QMainWindow):
         if x < 0 or y < 0 or width < 0 or height < 0:
             QMessageBox.warning(self, "获取参数失败", "获取参数失败，请勿最小化游戏")
             return
-        params = ui_logic_mini.calc_params_by_rect(x, y, width, height, self.get_param_keys())
-        for k, v in params.items():
+        self.game_x_input.setText(str(x))
+        self.game_y_input.setText(str(y))
+        self.game_width_input.setText(str(width))
+        self.game_height_input.setText(str(height))
+        self.calculat_param_action()
+    def calculat_param_action(self):
+        """
+        仅计算坐标参数，不获取窗口句柄。
+        适用于手动输入坐标后计算。
+        """
+        params = {k: self.get_config_value(k) for k in ('game_x', 'game_y', 'game_width', 'game_height',)}
+        if not self.check_param_keys(params):
+            msg = "部分窗口坐标参数不是有效数字，无法计算！\n"
+            QMessageBox.warning(self, "参数错误", msg)
+            return
+        try:
+            x = int(params['game_x'])
+            y = int(params['game_y'])
+            width = int(params['game_width'])
+            height = int(params['game_height'])
+        except Exception:
+            QMessageBox.warning(self, "参数错误", "窗口坐标参数必须为整数！")
+            return
+        result = ui_logic_mini.calc_params_by_rect(x, y, width, height, self.get_param_keys())
+        for k, v in result.items():
             widget = getattr(self, f"{k}_input", None)
             if widget is not None:
                 widget.setText(str(v))
-        QMessageBox.information(self, "成功", f"已自动获取窗口客户区坐标和参数并填入。")
-
     def get_table_row_data(self, row):
         """
         获取表格中指定行的全部数据，返回一个元组

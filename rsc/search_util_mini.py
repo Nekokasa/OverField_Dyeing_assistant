@@ -245,7 +245,7 @@ class ScriptWorker(QThread):
                     if is_similarity_enough(result,color,sim):
                         #music
                         if self.params['play_music'] == 'true':
-                            music_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../config/mission_completed.wav'))
+                            music_path = os.path.join(get_base_dir(), 'config', 'mission_completed.wav')
                             if not os.path.exists(music_path):
                                 print("未找到音频文件 mission_completed.wav！")
                             else:
